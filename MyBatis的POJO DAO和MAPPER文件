@@ -1,0 +1,103 @@
+这三者（POJO、DAO、Mapper文件）构成了 MyBatis 开发的 **“铁三角”**。它们必须紧密配合，缺一不可。
+
+### 1. POJO (Plain Old Java Object) 
+
+* **全称**：简单 Java 对象 (在你的项目中通常放在 `pojo` 或 `entity` 包下)。
+* **角色**：**数据的载体**。
+* **作用**：
+* 它对应数据库中的 **一张表**。
+* 它的每一个属性（field），对应表中的 **一列**。
+* 不管是传给数据库的数据，还是从数据库拿回来的数据，都装在这个盒子里。
+
+
+* **代码示例**：
+```java
+// 对应数据库里的 t_user 表
+public class User {
+    private Integer id;     // 对应 id 列
+    private String name;    // 对应 name 列
+    private Integer age;    // 对应 age 列
+    // ... getter/setter ...
+    //有参/无参构造
+}
+
+```
+
+
+
+### 2. DAO (Data Access Object) 
+
+* **全称**：数据访问对象。在 MyBatis 中，它具体表现为 **Mapper 接口** (`Interface`)。
+* **角色**：**操作的定义**。
+* **作用**：
+* 它定义了你能对数据库做什么（查、增、删、改）。
+* **注意**：它只是一个 **接口**，里面只有方法名，**没有具体代码实现**。它只是一张“菜单”，上面写着“宫保鸡丁”，但没有写怎么炒。
+
+
+* **代码示例** (`UserMapper.java`):
+```java
+public interface UserMapper {
+    // 定义了一个“根据ID查用户”的动作
+    User selectById(Integer id);
+}
+
+```
+
+
+
+### 3. Mapper 文件 (XML) 
+
+* **全称**：XML 映射文件 (通常以 `.xml` 结尾)。
+* **角色**：**操作的实现**。
+* **作用**：
+* 它是 DAO 接口的 **“幕后代练”**。
+* 接口里定义了方法，这里就写该方法对应的 **SQL 语句**。
+* 它负责告诉 MyBatis：“当有人调用接口里的 `selectById` 时，请执行这句 `SELECT * ...`”。
+
+
+* **代码示例** (`UserMapper.xml`):
+```xml
+<mapper namespace="com.example.mapper.UserMapper">
+
+    <select id="selectById" resultType="com.example.pojo.User">
+        SELECT * FROM t_user WHERE id = #{id}
+    </select>
+
+</mapper>
+
+```
+
+
+
+---
+
+### 三者的核心绑定关系 (Mapping)
+
+初学者最容易晕的是：**它们三个是怎么连起来的？**
+
+MyBatis 是通过 **“三大暗号”** 将它们自动绑定的。请看下文的逻辑关系：
+
+1. **类绑定 (Namespace Binding)**
+* XML 文件中的 `<mapper namespace="...">` **必须** 等于 DAO 接口的 **全类名**。
+* *效果*：MyBatis 知道这个 XML 是专门为 `UserMapper.java` 服务的。
+
+
+2. **方法绑定 (Method Binding)**
+* XML 标签中的 `id="selectById"` **必须** 等于 DAO 接口中的 **方法名**。
+* *效果*：当你调用 Java 接口的 `selectById()` 时，MyBatis 能精准找到 XML 里的这条 SQL。
+
+
+3. **结果绑定 (Result Binding)**
+* XML 中的 `resultType="..."` **必须** 指向 **POJO 类的全名**。
+* *效果*：SQL 查出来的表数据，MyBatis 知道要利用反射机制，自动填入 `User` 对象里。
+
+
+
+### 总结
+
+* **POJO**：是 **车**（运送数据的）。
+* **DAO**：是 **遥控器**（上面有按钮，如“前进”、“后退”）。
+* **Mapper XML**：是 **引擎/电路板**（接收到遥控器的信号后，真正驱动车轮转动的内部逻辑）。
+
+**在你的项目中：**
+你写代码时，主要在 **DAO 接口** 里定义功能，在 **XML** 里写 SQL，最后拿 **POJO** 来接收结果。
