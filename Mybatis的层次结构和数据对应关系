@@ -1,0 +1,92 @@
+为了让你彻底理解 MyBatis 是如何工作的，我们需要把它的**架构结构（Structure）**和**数据对应关系（Data Mapping）**分开来讲。
+
+你可以把 MyBatis 想象成一个**精通双语的“高级翻译官”**。它的工作就是把 Java 语言（面向对象）翻译成 SQL 语言（关系型数据库），反之亦然。
+
+### 一、 MyBatis 的结构层次 (Structure)
+
+MyBatis 的内部结构通常分为三层，从上到下就像一个漏斗，把你的 Java 请求一步步转化成数据库操作。
+
+#### 1. 接口层 (Interface Layer) —— "前台柜台"
+
+这是你（开发者）直接打交道的一层。
+
+* **组件**：`SqlSession`，**Mapper 接口**（比如你写的 `ProductMapper.java`）。
+* **作用**：接收你的指令。当你调用 `productMapper.selectById(1)` 时，就是在这个层级发起的。
+* **对应你之前的代码**：就是你的 `mapper` 包里的接口。
+
+#### 2. 核心处理层 (Core Layer) —— "翻译中心"
+
+这是 MyBatis 的大脑，最复杂的一层。它负责把你的 Java 指令“翻译”成 SQL，并执行。
+
+* **配置解析**：读取 `mybatis-config.xml` 和 `Mapper.xml`，知道数据库在哪，SQL 怎么写。
+* **参数映射 (Parameter Mapping)**：把 Java 传进来的参数（如 `Integer id`）填入 SQL 的 `#{id}` 中。
+* **SQL 执行**：通过 `Executor`（执行器）去数据库执行真正的 SQL 语句。
+* **结果映射 (Result Mapping)**：这是最神奇的地方。它把数据库返回的死板的“表格数据”，自动转换成鲜活的 Java 对象（`Product` 对象）。
+
+#### 3. 基础支撑层 (Foundation Layer) —— "后勤保障"
+
+这一层负责最底层的脏活累活。
+
+* **组件**：连接池（DataSource）、事务管理（Transaction）、日志（Log）。
+* **对应你之前的代码**：就是你在 `mybatis-config.xml` 里配置的 `<dataSource type="POOLED">` 和 `<transactionManager>`。
+
+---
+
+### 二、 数据对应讲解 (Data Mapping)
+
+所谓的“数据对应”，在专业术语里叫 **ORM (Object-Relational Mapping，对象关系映射)**。
+
+MyBatis 的核心任务就是解决 **Java 对象** 和 **数据库表** 长得不一样的问题。
+
+#### 1. 四大对应关系
+
+| 概念 | Java 世界 (面向对象) | 数据库世界 (关系型表) | 例子 |
+| --- | --- | --- | --- |
+| **容器** | **Class (类)** | **Table (表)** | `Product.java` 对应 `t_product` 表 |
+| **属性** | **Field (成员变量)** | **Column (列/字段)** | `private Double price` 对应 `price` 字段 |
+| **个体** | **Object (对象实例)** | **Row (记录/行)** | `new Product(1, "书")` 对应 表里 id 为 1 的那一行数据 |
+| **类型** | **Data Type** | **SQL Type** | `String` 对应 `VARCHAR`，`Integer` 对应 `INT` |
+
+#### 2. 两个关键的“搬运工”
+
+在 MyBatis 内部，有两个非常重要的组件负责这种搬运和对应：
+
+**A. ParameterHandler (参数处理器)：Java -> 数据库**
+
+* **场景**：当你保存订单时。
+* **工作**：它负责把 Java 对象里的属性值“抠”出来，填到 SQL 语句的占位符里。
+* Java: `order.setUserId(100)`
+* MyBatis: `INSERT INTO order (user_id) VALUES (#{userId})`
+* 结果：`#{userId}` 变成了 `100`。
+
+
+
+**B. ResultSetHandler (结果集处理器)：数据库 -> Java**
+
+* **场景**：当你查询商品时。
+* **工作**：这是 MyBatis 最强大的地方。数据库返回的是一行行枯燥的文本（ResultSet），这个处理器会：
+1. `new` 一个 `Product` 对象出来。
+2. 读取数据库的 `product_name` 列。
+3. 自动调用 Java 的 `setProductName()` 方法把值塞进去。
+4. 最后把封装好的对象交给你。
+
+
+
+#### 3. 常见问题：驼峰命名 vs 下划线
+
+* **Java 习惯**：驼峰命名法 (`userName`, `createTime`)
+* **数据库 习惯**：下划线命名法 (`user_name`, `create_time`)
+
+**怎么对应？**
+如果名字不一样，MyBatis 默认是认不出来的。你有两种解决办法：
+
+1. **在 SQL 里起别名**：`SELECT user_name AS userName FROM ...`
+2. **开启驼峰映射配置 (推荐)**：
+在 Spring Boot 的配置里加上一行：
+`mybatis.configuration.map-underscore-to-camel-case=true`
+这样 MyBatis 就会自动把 `user_name` 对应给 `userName`。
+
+### 总结
+
+* **结构上**：MyBatis 分为**接口层**（你调用的）、**核心层**（干活的）、**基础层**（连接数据库的）。
+* **数据上**：它把 **类映射成表**，把 **属性映射成列**。通过输入映射（Parameter）和输出映射（Result），实现了 Java 和数据库的无缝对话。
